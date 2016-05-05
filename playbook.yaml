@@ -51,8 +51,13 @@
      - epydoc
      - psutil
 
+- hosts: machine1
+  become: yes
+  become_user: vagrant
+  tasks:
+
   #   - name: clone greenplum repo
-  #   git: dest=/tmp/gpdb depth=1 force=yes accept_hostkey=true repo=http://github.com/greenplum-db/gpdb.git
+  #     git: dest=/tmp/gpdb depth=1 force=yes accept_hostkey=true repo=http://github.com/greenplum-db/gpdb.git
 
   #   - name: configure greenplum database
   #     shell: ./configure --prefix=/usr/local/gpdb chdir=/tmp/gpdb
@@ -62,8 +67,6 @@
   
 
    - name: install database to other machines
-     become: yes
-     become_user: vagrant
      shell: rsync -ae "ssh -i $HOME/.ssh/gp_rsa  -oBatchMode=yes -oStrictHostKeyChecking=no" /usr/local/gpdb/ {{item}}:/usr/local/gpdb/ 
      with_items:
      - 192.168.77.22
