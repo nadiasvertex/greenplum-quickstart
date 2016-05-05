@@ -3,16 +3,44 @@
   become: yes
   tasks:
   
+   - name: create dba user
+     user: state=present name=dba comment="Greenplum Database Administrator"
+
    - name: setup ssh key
-     authorized_key: state=present user=vagrant key="{{ lookup('file', 'gp_rsa.pub') }}"
+     authorized_key: state=present user=dba key="{{ lookup('file', 'gp_rsa.pub') }}"
 
    - name: copy in private key
      become: yes
-     become_user: vagrant
-     copy: src=gp_rsa dest=~/.ssh/gp_rsa mode="u=rw,g-rw,o-rw"
+     become_user: dba
+     copy: src=gp_rsa dest=~/.ssh/id_rsa mode="u=rw,g-rw,o-rw"
+
+   - name: configure ssh
+     become: yes
+     become_user: dba
+     copy: src=ssh_config dest=~/.ssh/config mode="u=rw,g-rw,o-rw"
 
    - name: make destination folder
-     file: state=directory path=/usr/local/gpdb owner=vagrant 
+     file: state=directory path=/usr/local/gpdb owner=dba
+
+   - name: setup host names
+     lineinfile: dest=/etc/hosts line="{{item.addr}} {{item.host}}"
+     with_items:
+     - { addr: 192.168.77.21, host: mdw }
+     - { addr: 192.168.77.22, host: sdw1 }
+     - { addr: 192.168.77.23, host: sdw2 }
+     - { addr: 192.168.77.24, host: sdw3 }
+     - { addr: 192.168.77.25, host: sdw4 }
+
+
+- hosts: machine2,machine3,machine4,machine5
+  become: yes
+  tasks:
+
+   - name: make data folders
+     file: state=directory path=/{{item}}/primary owner=dba
+     with_items:
+     - data1
+     - data2
 
 - hosts: machine1
   become: yes
@@ -45,32 +73,36 @@
    - name: install python dependencies
      pip: state=present name={{item}}
      with_items:
+     - setuptools
      - lockfile
      - paramiko
-     - setuptools
      - epydoc
      - psutil
 
+   - name: make master data folder
+     file: state=directory path=/data/master owner=dba
+
 - hosts: machine1
   become: yes
-  become_user: vagrant
+  become_user: dba
   tasks:
 
-  #   - name: clone greenplum repo
-  #     git: dest=/tmp/gpdb depth=1 force=yes accept_hostkey=true repo=http://github.com/greenplum-db/gpdb.git
+  - name: clone greenplum repo
+    git: dest=/tmp/gpdb depth=1 force=yes accept_hostkey=true repo=http://github.com/greenplum-db/gpdb.git
 
-  #   - name: configure greenplum database
-  #     shell: ./configure --prefix=/usr/local/gpdb chdir=/tmp/gpdb
+  - name: configure greenplum database
+    shell: ./configure --prefix=/usr/local/gpdb chdir=/tmp/gpdb
 
-  #   - name: build greenplum database
-  #     shell: make && make install chdir=/tmp/gpdb
-  
+  - name: build greenplum database
+    shell: make && make install chdir=/tmp/gpdb
 
-   - name: install database to other machines
-     shell: rsync -ae "ssh -i $HOME/.ssh/gp_rsa  -oBatchMode=yes -oStrictHostKeyChecking=no" /usr/local/gpdb/ {{item}}:/usr/local/gpdb/ 
-     with_items:
-     - 192.168.77.22
-     - 192.168.77.23
-     - 192.168.77.24
-     - 192.168.77.25
+  - name: copy database configuration
+    copy: src={{item}} dest=~/{{item}}
+    with_items:
+    - gp.config
+    - machines.config
+
+  - name: initialize greenplum database
+    command: /usr/local/gpdb/bin/gpinitsystem -c gp.config -h machines.config
+
 
