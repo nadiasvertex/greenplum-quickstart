@@ -1,0 +1,73 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+  
+   - name: setup ssh key
+     authorized_key: state=present user=vagrant key="{{ lookup('file', 'gp_rsa.pub') }}"
+
+   - name: copy in private key
+     become: yes
+     become_user: vagrant
+     copy: src=gp_rsa dest=~/.ssh/gp_rsa mode="u=rw,g-rw,o-rw"
+
+   - name: make destination folder
+     file: state=directory path=/usr/local/gpdb owner=vagrant 
+
+- hosts: machine1
+  become: yes
+  tasks:
+
+   - name: install build pre-requisites
+     apt: state=present name={{item}}
+     with_items:
+     - git-core
+     - build-essential
+     - gcc
+     - g++
+     - ccache
+     - libreadline-dev
+     - bison
+     - flex
+     - zlib1g-dev
+     - openssl
+     - libapr1-dev
+     - libevent-dev
+     - libssl-dev
+     - libpam-dev
+     - libcurl4-openssl-dev
+     - libbz2-dev
+     - libffi-dev
+     - python-dev
+     - ssh
+     - python-pip
+
+   - name: install python dependencies
+     pip: state=present name={{item}}
+     with_items:
+     - lockfile
+     - paramiko
+     - setuptools
+     - epydoc
+     - psutil
+
+  #   - name: clone greenplum repo
+  #   git: dest=/tmp/gpdb depth=1 force=yes accept_hostkey=true repo=http://github.com/greenplum-db/gpdb.git
+
+  #   - name: configure greenplum database
+  #     shell: ./configure --prefix=/usr/local/gpdb chdir=/tmp/gpdb
+
+  #   - name: build greenplum database
+  #     shell: make && make install chdir=/tmp/gpdb
+  
+
+   - name: install database to other machines
+     become: yes
+     become_user: vagrant
+     shell: rsync -ae "ssh -i $HOME/.ssh/gp_rsa  -oBatchMode=yes -oStrictHostKeyChecking=no" /usr/local/gpdb/ {{item}}:/usr/local/gpdb/ 
+     with_items:
+     - 192.168.77.22
+     - 192.168.77.23
+     - 192.168.77.24
+     - 192.168.77.25
+
