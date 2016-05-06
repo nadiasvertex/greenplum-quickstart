@@ -31,11 +31,6 @@
      - { addr: 192.168.77.24, host: sdw3 }
      - { addr: 192.168.77.25, host: sdw4 }
 
-
-- hosts: machine2,machine3,machine4,machine5
-  become: yes
-  tasks:
-
    - name: make data folders
      file: state=directory path=/{{item}}/primary owner=dba
      with_items:
@@ -89,11 +84,12 @@
 
   - name: clone greenplum repo
     git: dest=/tmp/gpdb depth=1 force=yes accept_hostkey=true repo=http://github.com/greenplum-db/gpdb.git
+    ignore_errors: yes
 
-  - name: configure greenplum database
+  - name: configure greenplum database source code
     shell: ./configure --prefix=/usr/local/gpdb chdir=/tmp/gpdb
 
-  - name: build greenplum database
+  - name: build greenplum database from source
     shell: make && make install chdir=/tmp/gpdb
 
   - name: copy database configuration
@@ -101,8 +97,10 @@
     with_items:
     - gp.config
     - machines.config
+    - gp-setup.sh
 
   - name: initialize greenplum database
-    command: /usr/local/gpdb/bin/gpinitsystem -c gp.config -h machines.config
+    shell: bash ~/gp-setup.sh
+
 
 
