@@ -16,7 +16,7 @@ Vagrant.configure(2) do |config|
         end
         machine.vm.network "private_network", ip: "192.168.77.#{20+machine_id}"
         config.vm.provider "virtualbox" do |v|
-         v.memory = 1024
+         v.memory = 2048
         end       
         # Only execute once the Ansible provisioner,
         # when all the machines are up and ready.
