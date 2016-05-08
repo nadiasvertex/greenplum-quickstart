@@ -27,6 +27,14 @@
      - {name: "net.core.wmem_max" , value: 2097152}
      - {name: "vm.overcommit_memory" , value: 2}
      
+   - name: setup limits.conf
+     lineinfile: dest=/etc/security/limits.conf line="{{item}}"
+     with_items:
+     - "* soft nofile 65536"
+     - "* hard nofile 65536"
+     - "* soft nproc 131072"
+     - "* hard nproc 131072"
+
    - name: create gpadmin user
      user: state=present name=gpadmin groups=staff comment="Greenplum Database Administrator"
 
