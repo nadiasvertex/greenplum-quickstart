@@ -9,7 +9,11 @@ Vagrant.configure(2) do |config|
   N = 5
   (1..N).each do |machine_id|
      config.vm.define "machine#{machine_id}" do |machine|
-        machine.vm.hostname = "machine#{machine_id}"
+        if machine_id == 1
+           machine.vm.hostname = "mdw"
+        else
+           machine.vm.hostname = "sdw#{machine_id-1}"
+        end
         machine.vm.network "private_network", ip: "192.168.77.#{20+machine_id}"
         config.vm.provider "virtualbox" do |v|
          v.memory = 1024

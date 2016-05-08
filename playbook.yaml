@@ -3,24 +3,24 @@
   become: yes
   tasks:
   
-   - name: create dba user
-     user: state=present name=dba comment="Greenplum Database Administrator"
+   - name: create gpadmin user
+     user: state=present name=gpadmin groups=staff comment="Greenplum Database Administrator"
 
    - name: setup ssh key
-     authorized_key: state=present user=dba key="{{ lookup('file', 'gp_rsa.pub') }}"
+     authorized_key: state=present user=gpadmin key="{{ lookup('file', 'gp_rsa.pub') }}"
 
    - name: copy in private key
      become: yes
-     become_user: dba
+     become_user: gpadmin
      copy: src=gp_rsa dest=~/.ssh/id_rsa mode="u=rw,g-rw,o-rw"
 
    - name: configure ssh
      become: yes
-     become_user: dba
+     become_user: gpadmin
      copy: src=ssh_config dest=~/.ssh/config mode="u=rw,g-rw,o-rw"
 
    - name: make destination folder
-     file: state=directory path=/usr/local/gpdb owner=dba
+     file: state=directory path=/usr/local/gpdb owner=gpadmin
 
    - name: setup host names
      lineinfile: dest=/etc/hosts line="{{item.addr}} {{item.host}}"
@@ -31,15 +31,14 @@
      - { addr: 192.168.77.24, host: sdw3 }
      - { addr: 192.168.77.25, host: sdw4 }
 
+   - name: add gpdb path source to bashrc 
+     lineinfile: dest=~/.bashrc line="if [ -e /usr/local/gpdb/greenplum_path.sh ]; then source /usr/local/gpdb/greenplum_path.sh; fi"
+
    - name: make data folders
-     file: state=directory path=/{{item}}/primary owner=dba
+     file: state=directory path=/{{item}}/primary owner=gpadmin
      with_items:
      - data1
      - data2
-
-- hosts: machine1
-  become: yes
-  tasks:
 
    - name: install build pre-requisites
      apt: state=present name={{item}}
@@ -66,20 +65,27 @@
      - python-pip
 
    - name: install python dependencies
-     pip: state=present name={{item}}
+     pip: state=latest name={{item}}
      with_items:
      - setuptools
+     - cffi
+     - cryptography
      - lockfile
      - paramiko
      - epydoc
      - psutil
 
+- hosts: machine1
+  become: yes
+  tasks:
+
+
    - name: make master data folder
-     file: state=directory path=/data/master owner=dba
+     file: state=directory path=/data/master owner=gpadmin
 
 - hosts: machine1
   become: yes
-  become_user: dba
+  become_user: gpadmin
   tasks:
 
   - name: clone greenplum repo
